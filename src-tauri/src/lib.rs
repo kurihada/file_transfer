@@ -14,7 +14,7 @@ use crate::router::app_window::{
 
 use crate::config::config::init_config;
 
-use crate::router::file_utils::{get_document_notebooks, set_data_dir};
+use crate::router::file_utils::{exist_file, get_document_notebooks, set_data_dir};
 use crate::router::note_book::{
     create_note_file, create_notebook, get_note_list, read_note_file, remove_note, remove_notebook,
     save_note,
@@ -49,6 +49,7 @@ pub fn run() {
             windows_close,
             get_document_notebooks,
             set_data_dir,
+            exist_file,
         ])
         .setup(|app| {
             let config = init_config(&app.path().app_config_dir().unwrap());
@@ -76,21 +77,15 @@ pub fn run() {
                 })
                 .enable_clipboard_access();
 
-            // 仅在 macOS 时设置透明标题栏
-            #[cfg(target_os = "macos")]
-            {
-                use tauri::TitleBarStyle;
-                let win_builder = win_builder.title_bar_style(TitleBarStyle::Transparent);
-            }
-
-            let window = win_builder.build().unwrap();
-
-            // 仅在构建 macOS 时设置背景颜色
+            // 仅在 macOS 时设置透明标题栏和背景颜色
             #[cfg(target_os = "macos")]
             {
                 use cocoa::appkit::{NSColor, NSWindow};
                 use cocoa::base::{id, nil};
+                use tauri::TitleBarStyle;
 
+                let win_builder = win_builder.title_bar_style(TitleBarStyle::Transparent);
+                let window = win_builder.build().unwrap();
                 let ns_window = window.ns_window().unwrap() as id;
                 unsafe {
                     let bg_color = NSColor::colorWithRed_green_blue_alpha_(

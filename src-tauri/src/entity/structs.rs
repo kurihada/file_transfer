@@ -6,7 +6,7 @@ pub struct DirAndFileInfo {
     pub path: String,
     pub is_file: bool,
     pub is_dir: bool,
-    pub parent_id: String,
+    pub parent_path: String,
     pub children: Vec<DirAndFileInfo>,
 }
 
@@ -23,7 +23,7 @@ impl DirAndFileInfo {
             path,
             is_file,
             is_dir,
-            parent_id,
+            parent_path: parent_id,
             children: Vec::new(),
         }
     }

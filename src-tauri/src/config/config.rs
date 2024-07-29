@@ -43,7 +43,6 @@ pub fn init_config(config_dir: &PathBuf) -> std::io::Result<Config> {
     // let config = serde_json::from_str::<Config>(&config_json)?;
     // Ok(config);
     // 尝试以读模式打开文件
-    tauri_plugin_fs::
     let file = match File::open(config_path) {
         Ok(f) => f,
         Err(e) if e.kind() == ErrorKind::NotFound => {

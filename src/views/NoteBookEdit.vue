@@ -1,7 +1,11 @@
 <template>
     <el-row style="height: 100%; width: 100%; overflow: auto; background-color: #d9d9d9">
-        <el-col :span="5" style="height: 100%; padding: 5px">
+        <el-col
+            :span="5"
+            style="height: 100%; padding: 5px"
+            @contextmenu.prevent="handleRightClick">
             <el-tree
+                v-if="data.show_notebooks_data.length > 0"
                 :data="data.show_notebooks_data"
                 draggable
                 node-key="id"
@@ -9,23 +13,53 @@
                 @node-click="handleNodeClick"
                 @node-expand="handleExpand"
                 @node-collapse="handleCollapse"
-                @node-contextmene="handleContextmenu"
+                @node-contextmenu="handleContextmenu"
                 style="font-size: medium" />
-            <div class="upload-container" style="height: 100%">
-                <div
-                    @click="selectFolder"
-                    style="
-                        height: 100%;
-                        width: 100%;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                    ">
-                    <el-icon size="large"><Plus /></el-icon>
-                    <el-text size="large">点击添加文件夹</el-text>
-                </div>
+            <div
+                v-else-if="dataDir != null"
+                style="
+                    height: 100%;
+                    width: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                ">
+                <el-icon size="large"><Plus /></el-icon>
+                <el-text size="large">右键创建文件/文件夹</el-text>
             </div>
+            <div
+                v-else
+                class="upload-container"
+                @click="selectFolder"
+                style="
+                    height: 100%;
+                    width: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                ">
+                <el-icon size="large"><Plus /></el-icon>
+                <el-text size="large">选择文件夹</el-text>
+            </div>
+            <context-menu v-model:show="context_menu_show" :options="optionsComponent">
+                <context-menu-item label="刷新" @click="reFresh" />
+                <context-menu-group label="笔记">
+                    <context-menu-item label="添加笔记" @click="showAddNotebookModalForm" />
+                    <context-menu-item label="删除笔记" @click="showAddNotebookModalForm" />
+                </context-menu-group>
+                <context-menu-group label="文件夹">
+                    <context-menu-item
+                        label="添加文件夹"
+                        @click="
+                            () => {
+                                data.addFolderModalFormVisible = true;
+                            }
+                        " />
+                    <!-- <context-menu-item label="删除文件夹" @click="showAddFolderModalForm" /> -->
+                </context-menu-group>
+            </context-menu>
         </el-col>
 
         <!-- 编辑器栏 -->
@@ -72,7 +106,12 @@
         center>
         <template #footer>
             <el-button @click="handleCancelByAddNotebookModal">取消</el-button>
-            <el-button type="primary" :loading="data.loading" @click="addNotebook">确认</el-button>
+            <el-button
+                type="primary"
+                :loading="data.loading"
+                @click="addNotebook(data.newNoteMdFileName)"
+                >确认</el-button
+            >
         </template>
         <div>
             <br />
@@ -82,26 +121,6 @@
             <br />
         </div>
     </el-dialog>
-    <context-menu
-        v-model:show="context_menu_show"
-        :options="optionsComponent"
-        v-if="notebooks_data.values.length > 0">
-        <context-menu-item label="刷新" @click="reFresh" />
-        <context-menu-group label="笔记">
-            <context-menu-item label="添加笔记" @click="showAddNotebookModalForm" />
-            <context-menu-item label="删除笔记" @click="showAddNotebookModalForm" />
-        </context-menu-group>
-        <context-menu-group label="文件夹">
-            <context-menu-item label="添加文件夹" @click="showAddFolderModalForm" />
-            <context-menu-item label="删除文件夹" @click="showAddFolderModalForm" />
-        </context-menu-group>
-    </context-menu>
-    <context-menu v-model:show="context_menu_show" :options="optionsComponent" v-else>
-        <context-menu-item label="刷新" @click="reFresh" />
-        <context-menu-group label="文件夹">
-            <context-menu-item label="添加文件夹" @click="showAddFolderModalForm" />
-        </context-menu-group>
-    </context-menu>
 </template>
 <script lang="ts" setup>
 import { computed, onMounted, reactive, ref } from 'vue';
@@ -109,11 +128,21 @@ import DirFileMenu from '../utils/DirFileMenu.ts';
 import StringUtil from '../utils/StringUtil.ts';
 import NotificationUtil from '../utils/NotificationUtil.ts';
 import { invoke } from '@tauri-apps/api/core';
-import ElMessageBox from 'element-plus';
+import { ElMessageBox } from 'element-plus';
 import { FileInfo } from '../entity/FileInfo.ts';
 import { open } from '@tauri-apps/plugin-dialog';
+import MarkdownFile from '../utils/MarkdownFile.ts';
 
-const data_dir = ref('');
+const handleRightClick = (event: MouseEvent) => {
+    event.preventDefault();
+    context_menu_show.value = true;
+    optionsComponent.x = event.x;
+    optionsComponent.y = event.y;
+};
+
+const dataDir = ref('');
+const curDir = ref('');
+
 const selectFolder = async () => {
     try {
         const selected = await open({
@@ -122,22 +151,23 @@ const selectFolder = async () => {
         });
 
         if (selected && typeof selected === 'string') {
-            data_dir.value = selected;
-            invoke('set_data_dir', { dataDir: data_dir.value })
+            dataDir.value = selected;
+            curDir.value = selected;
+            invoke('set_data_dir', { dataDir: dataDir.value })
                 .then((_: any) => {
                     invoke('get_document_notebooks')
                         .then((res: any) => {
                             if (res && res.code == 200) {
                                 notebooks_data.value = JSON.parse(res.data).children;
-                                NotificationUtil.success('添加完成');
+                                NotificationUtil.success('选择完成');
                             }
                         })
                         .catch((err) => {
-                            NotificationUtil.error('获取数据失败:' + err);
+                            NotificationUtil.error('获取文件夹下内容失败:' + err);
                         });
                 })
                 .catch((err) => {
-                    NotificationUtil.error('获取数据失败:' + err);
+                    NotificationUtil.error('文件夹选择失败:' + err);
                 });
         }
     } catch (error) {
@@ -276,27 +306,20 @@ const optionsComponent = {
     y: 200,
 };
 
-// document.addEventListener('contextmenu', (e: MouseEvent) => {
-//     e.preventDefault();
-//     context_menu_show.value = true;
-//     optionsComponent.x = e.x;
-//     optionsComponent.y = e.y;
-// });
-
 let notes: any[] = [];
 
-let notebooks_data = ref([]);
+let notebooks_data = ref<FileInfo[]>([]);
 /**
  *  获取笔记本数据
  */
 let get_document_notebooks = () => {
-    invoke('get_document_notebooks')
-        .then((res: any) => {
-            console.log(res);
-            if (res && res.code == 200) {
-                let data_ = JSON.parse(res.data);
-                notebooks_data.value = data_.children;
+    MarkdownFile.getNotebooks()
+        .then((fileInfo: FileInfo) => {
+            if (fileInfo.children) {
+                notebooks_data.value = fileInfo.children;
             }
+            dataDir.value = fileInfo.path;
+            curDir.value = fileInfo.path;
         })
         .catch((err) => {
             NotificationUtil.error('获取数据失败: ' + err);
@@ -456,13 +479,6 @@ const saveMdText = (mdText: string, render: string) => {
 };
 
 /**
- * 显示添加文件夹对话框
- */
-const showAddFolderModalForm = () => {
-    data.addFolderModalFormVisible = true;
-};
-
-/**
  * 添加文件夹
  */
 let addNodeFolder = function () {
@@ -477,15 +493,8 @@ let addNodeFolder = function () {
         data.newFolderName = '';
         return;
     }
-    var regex = /.*[/\\:*?|].*/;
-    //存在返回true，不存在返回false
-    if (regex.test(notebookName)) {
-        NotificationUtil.error('文件夹命名不规范，不能包含\\ / : * ? " < > |请检查！');
-        return;
-    }
-    if (/^\d+$/.test(notebookName)) {
-        NotificationUtil.error('文件夹命名不规范，不能为纯数字！');
-        return;
+    if (!StringUtil.namingVerify(notebookName)) {
+        return false;
     }
     data.confirmLoading = true;
     data.loading = true;
@@ -510,13 +519,8 @@ let addNodeFolder = function () {
 };
 // 显示添加笔记对话框
 const showAddNotebookModalForm = () => {
-    let openkeys_ = openKeys;
-    let openkey = '';
-    if (openkeys_.length > 0) {
-        openkey = openkeys_[openkeys_.length - 1];
-    }
-    if (StringUtil.isNullAndEmpty(openkey)) {
-        NotificationUtil.error(`请选择文件夹`);
+    if (StringUtil.isNullAndEmpty(curDir)) {
+        NotificationUtil.error(`请选择文件所在的文件夹`);
         return;
     }
     data.addNotebookModalFormVisible = true;
@@ -524,66 +528,20 @@ const showAddNotebookModalForm = () => {
 /**
  * 添加笔记
  */
-let addNotebook = function () {
-    //判断是否能已有相同文件
-    let openkeys_ = openKeys;
-    let openkey = '';
-    if (openkeys_.length > 0) {
-        openkey = openkeys_[openkeys_.length - 1];
-    }
-    let FolderChilrenFileNameSet = DirFileMenu.getFolderChilrenFileNameSet(
-        notebooks_data.value,
-        openkey,
-    );
-
-    let newNoteMdFileName = data.newNoteMdFileName.trim();
-    if (newNoteMdFileName == null || newNoteMdFileName == undefined || newNoteMdFileName == '') {
-        NotificationUtil.error('创建文件失败，请填写文件名称！');
-        return;
-    }
-    if (FolderChilrenFileNameSet.has(newNoteMdFileName)) {
-        data.newNoteMdFileName = '';
-        NotificationUtil.error('已有相同文件名，请检查！');
-        return;
-    }
-    var regex = /.*[/\\:*?|].*/;
-    //存在返回true，不存在返回false
-    if (regex.test(data.newNoteMdFileName)) {
-        NotificationUtil.error('笔记名称命名不规范，不能包含\\ / : * ? " < > |请检查！');
-        return;
-    }
-    if (/^\d+$/.test(data.newNoteMdFileName)) {
-        NotificationUtil.error('笔记名称命名不规范，不能为纯数字！');
-        return;
-    }
-    var notebook = data.currentNotebook;
-    if (notebook) {
-        invoke('create_note_file', {
-            notebook: notebook,
-            newNoteMdFileName: newNoteMdFileName,
-        })
-            .then((res: any) => {
-                if (res && res.code == 200) {
-                    var fileName = res.data;
-                    NotificationUtil.success('笔记创建成功：' + fileName);
-                    data.newNoteMdFileName = fileName;
-                    notes.push({ title: String(fileName) });
-                    data.currentNote = fileName; // 置当前笔记为新建的临时笔记
-                    // 打开该临时笔记
-                    data.mdTitle = fileName;
-                    data.mdText = '';
-                    data.showMdEditor = true;
-                    data.mdOldTitle = fileName;
-                    data.notEditedMdtext = '';
-                    data.addNotebookModalFormVisible = false; // 隐藏模态表单
-                    get_document_notebooks();
-                } else {
-                    NotificationUtil.error('笔记创建失败：' + res.msg);
-                }
-            })
-            .catch((err) => {
-                console.log(err);
-            });
+const addNotebook = async (fileName: string) => {
+    const isSuccess = await MarkdownFile.addNotebook(curDir.value, fileName);
+    if (isSuccess) {
+        data.newNoteMdFileName = fileName;
+        notes.push({ title: String(fileName) });
+        data.currentNote = fileName; // 置当前笔记为新建的临时笔记
+        // 打开该临时笔记
+        data.mdTitle = fileName;
+        data.mdText = '';
+        data.showMdEditor = true;
+        data.mdOldTitle = fileName;
+        data.notEditedMdtext = '';
+        data.addNotebookModalFormVisible = false; // 隐藏模态表单
+        get_document_notebooks();
     }
 };
 

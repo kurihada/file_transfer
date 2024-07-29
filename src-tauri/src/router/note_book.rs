@@ -134,54 +134,25 @@ pub async fn create_notebook(
 }
 
 /**
- * @param notebook 文件夹/笔记本
- * @param newNoteMdFileName 笔记名 文件名
+ * 在指定的目录中创建一个markdown文件。
+ *
+ * @param cur_dir 指定的目录路径。
+ * @param file_name 要创建的文件名。
+ * @return 如果文件成功创建，返回Ok(true)；如果目录不存在，返回Err带有错误信息；如果创建文件失败，返回Err带有错误信息。
  */
 #[tauri::command]
-pub async fn create_note_file(
-    app_handle: tauri::AppHandle,
-    notebook: String,
-    newNoteMdFileName: String,
-) -> Result<ResData<String>, String> {
-    let app_dir = app_handle.path().document_dir();
-    if let Ok(dir) = app_dir {
-        let local_data_dir = dir.as_path().join("notebooks");
-        if local_data_dir.exists() {
-            let newNoteMdFileName_: String = newNoteMdFileName.clone();
-            let name = chrono::prelude::Local::now().timestamp_millis().to_string();
-            let temp_file = local_data_dir
-                .join(notebook)
-                .join(newNoteMdFileName + ".md");
-            // 创建文件
-            let res = std::fs::File::create(temp_file);
-            match res {
-                Ok(_) => {
-                    return Ok(ResData {
-                        code: 200,
-                        msg: "创建成功".to_string(),
-                        data: newNoteMdFileName_,
-                    })
-                }
-                Err(err) => {
-                    return Ok(ResData {
-                        code: 500,
-                        msg: format!("创建失败：{0}", err.to_string()),
-                        data: String::new(),
-                    })
-                }
-            }
-        }
-        return Ok(ResData {
-            code: 500,
-            msg: "文件夹不存在".to_string(),
-            data: String::new(),
-        });
+pub async fn create_note_file(cur_dir: String, file_name: String) -> Result<bool, String> {
+    let cur_path = Path::new(&cur_dir);
+
+    if !cur_path.exists() {
+        return Err(format!("文件夹不存在:{}", &cur_dir));
     }
-    Ok(ResData {
-        code: 500,
-        msg: "文件夹不存在".to_string(),
-        data: String::new(),
-    })
+
+    let res = std::fs::File::create(cur_path.join(file_name + ".md"));
+    match res {
+        Ok(_) => return Ok(true),
+        Err(err) => return Err(format!("创建失败：{}", err.to_string())),
+    }
 }
 
 /**

@@ -126,7 +126,7 @@ pub fn get_dir_and_file(
     })
 }
 
-pub fn get_document_notebooks_data(root_path_str: &String) -> Result<ResData<String>, String> {
+pub fn get_document_notebooks_data(root_path_str: &String) -> Result<String, String> {
     let root_path = Path::new(root_path_str);
     let mut root_node = DirAndFileInfo::create(
         root_path.file_name().unwrap().to_str().unwrap().to_string(),
@@ -140,9 +140,5 @@ pub fn get_document_notebooks_data(root_path_str: &String) -> Result<ResData<Str
         "get_document_notebooks_data {}",
         serde_json::to_string(&root_node).unwrap()
     );
-    Ok(ResData {
-        code: 200,
-        msg: "OK".to_string(),
-        data: serde_json::to_string(&root_node).unwrap(),
-    })
+    Ok(serde_json::to_string(&root_node).unwrap())
 }

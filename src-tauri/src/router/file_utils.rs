@@ -67,9 +67,7 @@ pub async fn get_home_notebooks(
 
 // 获取本地笔记本列表
 #[tauri::command]
-pub async fn get_document_notebooks<'a>(
-    config: State<'a, Config>,
-) -> Result<ResData<String>, String> {
+pub async fn get_document_notebooks<'a>(config: State<'a, Config>) -> Result<String, String> {
     let document_dir_lock = Arc::clone(&config.document_dir);
     let document_dir_opt = document_dir_lock.lock().map_err(|e| e.to_string())?;
     match *document_dir_opt {
@@ -98,4 +96,12 @@ pub async fn set_data_dir<'a>(
     }
     Config::save_config(&app_handle.path().app_config_dir().unwrap(), &config);
     Ok(())
+}
+
+#[tauri::command]
+pub async fn exist_file(cur_dir: String, file_name: String) -> Result<bool, String> {
+    let file_path = cur_dir + "/" + &file_name;
+    println!("file_path: {:?}", file_path);
+    let file_path = Path::new(&file_path);
+    Ok(file_path.exists())
 }
