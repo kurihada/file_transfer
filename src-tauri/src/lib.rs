@@ -76,6 +76,7 @@ pub fn run() {
                     }
                 })
                 .enable_clipboard_access();
+            let _window = win_builder.build().unwrap();
 
             // 仅在 macOS 时设置透明标题栏和背景颜色
             #[cfg(target_os = "macos")]
@@ -84,9 +85,7 @@ pub fn run() {
                 use cocoa::base::{id, nil};
                 use tauri::TitleBarStyle;
 
-                let win_builder = win_builder.title_bar_style(TitleBarStyle::Transparent);
-                let window = win_builder.build().unwrap();
-                let ns_window = window.ns_window().unwrap() as id;
+                let ns_window = _window.ns_window().unwrap() as id;
                 unsafe {
                     let bg_color = NSColor::colorWithRed_green_blue_alpha_(
                         nil,

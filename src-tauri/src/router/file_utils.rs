@@ -5,7 +5,7 @@ use crate::{
     response::resp_data::ResData,
     utils::fileUtil::{all_path, get_document_notebooks_data, read_dir_info},
 };
-use std::{fs, path::Path, ptr::null, result::Result::Ok, sync::Arc};
+use std::{path::Path, result::Result::Ok, sync::Arc};
 
 #[tauri::command]
 pub async fn my_read_file(path: std::path::PathBuf) -> String {

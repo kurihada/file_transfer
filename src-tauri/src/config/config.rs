@@ -1,6 +1,6 @@
 use std::{
-    fs::{self, File, OpenOptions},
-    io::{ErrorKind, Read, Write},
+    fs::{self, File},
+    io::{ErrorKind, Read},
     path::PathBuf,
     sync::{Arc, Mutex},
 };
@@ -13,9 +13,9 @@ pub struct Config {
 }
 
 impl Config {
-    fn new(document_dir: String) -> Self {
+    fn new(document_dir_opt: Option<String>) -> Self {
         Config {
-            document_dir: Arc::new(Mutex::new(Some(document_dir))),
+            document_dir: Arc::new(Mutex::new(document_dir_opt)),
         }
     }
 
@@ -34,29 +34,20 @@ pub fn init_config(config_dir: &PathBuf) -> std::io::Result<Config> {
     }
 
     let config_path = &config_dir.join("config.json");
-    // let mut file = OpenOptions::new()
-    //     .create(true)
-    //     .write(true)
-    //     .open(config_path)?;
-    // let mut config_json = String::new();
-    // file.read_to_string(&mut config_json)?;
-    // let config = serde_json::from_str::<Config>(&config_json)?;
-    // Ok(config);
-    // 尝试以读模式打开文件
-    let file = match File::open(config_path) {
-        Ok(f) => f,
-        Err(e) if e.kind() == ErrorKind::NotFound => {
-            // 如果文件不存在，则创建它（注意：这会创建一个空文件）
-            // 然后再次尝试以读模式打开它
-            File::create(config_path)?
+    match File::open(config_path) {
+        Ok(file) => {
+            let mut reader: std::io::BufReader<File> = std::io::BufReader::new(file);
+            let mut config_json = String::new();
+            reader.read_to_string(&mut config_json)?;
+            if config_json.is_empty() {
+                return Ok(Config::new(None));
+            }
+            Ok(serde_json::from_str::<Config>(&config_json).unwrap())
         }
-        Err(e) => return Err(e), // 其他错误直接返回
-    };
-
-    // 使用BufReader来读取文件内容
-    let mut reader: std::io::BufReader<File> = std::io::BufReader::new(file);
-    let mut config_json = String::new();
-    reader.read_to_string(&mut config_json)?; // 读取内容到String中
-    let config = serde_json::from_str::<Config>(&config_json)?;
-    Ok(config)
+        Err(e) if e.kind() == ErrorKind::NotFound => {
+            File::create(config_path).unwrap();
+            Ok(Config::new(None))
+        }
+        Err(e) => return Err(e),
+    }
 }
