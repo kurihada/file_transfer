@@ -132,6 +132,7 @@ import { ElMessageBox } from 'element-plus';
 import { FileInfo } from '../entity/FileInfo.ts';
 import { open } from '@tauri-apps/plugin-dialog';
 import MarkdownFile from '../utils/MarkdownFile.ts';
+import { NOT_FOUND_CODE, ResultFailure } from '../entity/Response.ts';
 
 const handleRightClick = (event: MouseEvent) => {
     event.preventDefault();
@@ -315,13 +316,19 @@ let notebooks_data = ref<FileInfo[]>([]);
 let get_document_notebooks = () => {
     MarkdownFile.getNotebooks()
         .then((fileInfo: FileInfo) => {
+            console.log(fileInfo);
             if (fileInfo.children) {
                 notebooks_data.value = fileInfo.children;
             }
             dataDir.value = fileInfo.path;
             curDir.value = fileInfo.path;
         })
-        .catch((err) => {
+        .catch((error) => {
+            const err = error as ResultFailure;
+            if (NOT_FOUND_CODE === err.code) {
+                NotificationUtil.warning('请选择文件夹');
+                return;
+            }
             NotificationUtil.error('获取数据失败: ' + err);
         });
 };

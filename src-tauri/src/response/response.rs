@@ -1,103 +1,70 @@
-use anyhow::Result;
+use lazy_static::lazy_static;
 use serde::Serialize;
-use std::collections::HashMap;
 
-pub type ResponseResult = Result<String>;
+use super::tauri_result::TauriError;
 
-pub trait Body {
-    fn into_response(self) -> Result<String>;
+#[derive(Serialize)]
+pub enum Result<T> {
+    Success {
+        code: String,
+        message: String,
+        data: T,
+    },
+    Failure {
+        code: String,
+        message: String,
+    },
 }
 
-/// generate the unified response data
-#[derive(Debug, Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Response<T> {
-    pub code: usize,
-    pub data: T,
-    pub msg: String,
+    pub result: Result<T>,
 }
 
-impl Body for String {
-    fn into_response(self) -> ResponseResult {
-        Ok(serde_json::to_string(&Response::ok(self, None))?)
-    }
-}
-
-impl<T> Body for Response<T>
-where
-    T: serde::ser::Serialize,
-{
-    fn into_response(self) -> ResponseResult {
-        Ok(serde_json::to_string(&self)?)
-    }
-}
-
-impl Body for () {
-    fn into_response(self) -> ResponseResult {
-        Ok(serde_json::to_string(&Response::ok("", None))?)
-    }
-}
-
-impl Body for bool {
-    fn into_response(self) -> ResponseResult {
-        Ok(serde_json::to_string(&Response::ok(self, None))?)
-    }
-}
-
-impl<T> Response<T>
-where
-    T: serde::ser::Serialize,
-{
-    pub fn new(code: usize, data: T, msg: &str) -> Self {
-        Response {
-            code,
-            data,
-            msg: msg.to_string(),
+#[allow(dead_code)]
+impl<T> Response<T> {
+    pub fn success(data: T) -> Self {
+        Self {
+            result: Result::Success {
+                code: "200".to_string(),
+                message: "success".to_string(),
+                data,
+            },
         }
     }
-
-    pub fn ok(data: T, msg: Option<&str>) -> Self {
-        Response {
-            code: 200,
-            data,
-            msg: msg.unwrap_or("ok").to_string(),
+    pub fn success_with_message(data: T, message: &str) -> Self {
+        Self {
+            result: Result::Success {
+                code: "200".to_string(),
+                message: message.to_string(),
+                data,
+            },
         }
     }
-
-    pub fn fail(data: T, msg: Option<&str>) -> Self {
-        Response {
-            code: 300,
-            data,
-            msg: msg.unwrap_or("fail").to_string(),
+    pub fn success_with_code(data: T, message: &str, code: &str) -> Self {
+        Self {
+            result: Result::Success {
+                code: code.to_string(),
+                message: message.to_string(),
+                data,
+            },
+        }
+    }
+    pub fn failure_with_message(message: &str, code: &str) -> Self {
+        Self {
+            result: Result::Failure {
+                code: code.to_string(),
+                message: message.to_string(),
+            },
         }
     }
 }
 
-impl<T> Body for Vec<T>
-where
-    T: serde::ser::Serialize,
-{
-    fn into_response(self) -> ResponseResult {
-        Ok(serde_json::to_string(&Response::ok(self, None))?)
-    }
-}
-
-impl<K, V> Body for HashMap<K, V>
-where
-    K: serde::ser::Serialize + Eq + std::hash::Hash,
-    V: serde::ser::Serialize + Eq + std::hash::Hash,
-{
-    fn into_response(self) -> ResponseResult {
-        Ok(serde_json::to_string(&Response::ok(self, None))?)
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub struct ResponseData<T: serde::ser::Serialize> {
-    pub data: T,
-}
-
-impl<T: serde::ser::Serialize> ResponseData<T> {
-    pub fn new(data: T) -> Self {
-        Self { data }
-    }
+lazy_static! {
+    pub static ref FAILURE_NOT_FOUND: Response<()> = Response {
+        result: Result::Failure {
+            code: "404".to_string(),
+            message: "not found".to_string(),
+        },
+    };
 }

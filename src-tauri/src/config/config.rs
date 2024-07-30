@@ -13,7 +13,7 @@ pub struct Config {
 }
 
 impl Config {
-    fn new(document_dir_opt: Option<String>) -> Self {
+    pub fn new(document_dir_opt: Option<String>) -> Self {
         Config {
             document_dir: Arc::new(Mutex::new(document_dir_opt)),
         }
