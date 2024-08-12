@@ -7,10 +7,13 @@ import { Response } from '../entity/Response';
 let _ = {
     async getNotebooks(): Promise<FileInfo> {
         try {
-            const result = await invoke<string>('get_document_notebooks');
+            const result: Response<FileInfo> = await invoke<Response<FileInfo>>(
+                'get_document_notebooks',
+            );
             console.log(result);
-            const a = JSON.parse(result) as Response<FileInfo>;
-            return a.data;
+            console.log(result.data);
+            // const a = JSON.parse(result) as Response<FileInfo>;
+            return result.data;
         } catch (error) {
             NotificationUtil.error('获取数据失败: ' + error);
             throw error;

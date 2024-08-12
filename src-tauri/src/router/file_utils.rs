@@ -2,10 +2,10 @@ use tauri::{Manager, State};
 
 use crate::{
     config::config::Config,
+    entity::structs::DirAndFileInfo,
     response::{
         response::Response,
-        result_code::ResultCode,
-        tauri_result::{ErrorInfo, TauriError, TauriResult},
+        tauri_result::{TauriError, TauriResult},
     },
     utils::fileUtil::get_document_notebooks_data,
 };
@@ -15,12 +15,12 @@ use std::{path::Path, result::Result::Ok, sync::Arc};
 #[tauri::command]
 pub async fn get_document_notebooks<'a>(
     config: State<'a, Config>,
-) -> TauriResult<Response<String>> {
+) -> TauriResult<Response<DirAndFileInfo>> {
     let document_dir_lock = Arc::clone(&config.document_dir);
     let document_dir_opt = document_dir_lock.lock()?;
     match *document_dir_opt {
         Some(ref dir) => {
-            println!("document_dir: {:?}", dir);
+            println!("document_dir: {}", dir);
             let local_data_dir = Path::new(&dir);
             if !local_data_dir.exists() {
                 std::fs::create_dir_all(local_data_dir)?;

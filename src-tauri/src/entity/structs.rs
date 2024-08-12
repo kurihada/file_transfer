@@ -1,6 +1,9 @@
+use derive_more::Display;
+
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Clone, Serialize)]
+#[derive(Debug, Deserialize, Clone, Serialize, Display, Default)]
+#[display("path: {}", path)]
 pub struct DirAndFileInfo {
     pub name: String,
     pub path: String,

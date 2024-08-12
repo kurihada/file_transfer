@@ -24,6 +24,7 @@ anyhow = "1.0.86"
 lazy_static = "1.5.0"
 tauri-plugin-dialog = "2.0.0-beta"
 tauri-plugin-fs = "2.0.0-beta.11"
+derive_more = { version = "1", features = ["full"] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 cocoa = "0.25"

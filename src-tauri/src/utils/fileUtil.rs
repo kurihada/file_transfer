@@ -16,7 +16,9 @@ use crate::{
  * @param root_path_str 根目录
  * @returns 给定目录下的所有文件信息
  */
-pub fn get_document_notebooks_data(root_path_str: &String) -> TauriResult<Response<String>> {
+pub fn get_document_notebooks_data(
+    root_path_str: &String,
+) -> TauriResult<Response<DirAndFileInfo>> {
     let root_path = Path::new(root_path_str);
     let mut root_node = DirAndFileInfo::create(
         root_path.file_name().unwrap().to_str().unwrap().to_string(),
@@ -26,9 +28,9 @@ pub fn get_document_notebooks_data(root_path_str: &String) -> TauriResult<Respon
         root_path.parent().unwrap().to_str().unwrap().to_string(),
     );
     get_dir_and_file(&mut root_node)?;
-    let result = serde_json::to_string(&root_node)?;
-    println!("get_document_notebooks_data {}", &result);
-    Ok(Response::success(result))
+    // let result = serde_json::to_string(&root_node)?;
+    println!("get_document_notebooks_data {}", &root_node);
+    Ok(Response::success(root_node))
 }
 
 /**
