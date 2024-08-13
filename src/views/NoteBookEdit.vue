@@ -86,7 +86,10 @@
         center>
         <template #footer>
             <el-button @click="handleCancelByAddFolderModal">取消</el-button>
-            <el-button type="primary" :loading="data.loading" @click="addNodeFolder"
+            <el-button
+                type="primary"
+                :loading="data.loading"
+                @click="addNodeFolder(data.newFolderParent, data.newFolderName)"
                 >确认</el-button
             >
         </template>
@@ -321,6 +324,8 @@ const get_document_notebooks = () => {
                 notebooks_data.value = fileInfo.children;
                 dataDir.value = fileInfo.path;
                 curDir.value = fileInfo.path;
+                data.newFolderParent = fileInfo.path;
+                console.log('newFolderParent' + data.newFolderParent);
             }
         })
         .catch((error) => {
@@ -487,40 +492,33 @@ const saveMdText = (mdText: string, render: string) => {
 /**
  * 添加文件夹
  */
-let addNodeFolder = function () {
-    let notebookName = data.newFolderName.trim();
-    if (notebookName == null || notebookName == undefined || notebookName == '') {
+const addNodeFolder = (parentFolderName: string, folderName: string) => {
+    console.log('添加文件夹：' + parentFolderName + '  ' + folderName);
+    folderName = folderName.trim();
+    if (StringUtil.isNullAndEmpty(folderName)) {
         NotificationUtil.error('创建文件夹失败，请填写文件夹名称！');
         return;
     }
-    let FolderNameSet = DirFileMenu.getFolderNameSet(notebooks_data.value);
-    if (FolderNameSet.has(notebookName)) {
-        NotificationUtil.success('已有相同文件夹名，请检查！');
-        data.newFolderName = '';
+    if (StringUtil.isNullAndEmpty(parentFolderName)) {
+        NotificationUtil.error('创建文件夹失败，父文件夹异常');
         return;
     }
-    if (!StringUtil.namingVerify(notebookName)) {
+    if (!StringUtil.namingVerify(folderName)) {
         return false;
     }
     data.confirmLoading = true;
     data.loading = true;
-    // 创建笔记本
-    invoke('create_notebook', { notebookName: notebookName })
-        .then((res: any) => {
-            if (res && res.code == 200) {
-                NotificationUtil.success('文件夹创建成功');
-                data.currentNotebook = notebookName; // 当前笔记本为新建的
-                data.newFolderName = ''; // 清空
-                data.addFolderModalFormVisible = false; // 隐藏模态表单
-                get_document_notebooks();
-            } else {
-                NotificationUtil.error('笔记本创建失败：' + res.msg);
-            }
+    // 创建文件夹
+    MarkdownFile.createFolder(parentFolderName + '/' + folderName)
+        .then((_: any) => {
+            NotificationUtil.success('文件夹创建成功');
+            data.addFolderModalFormVisible = false; // 隐藏模态表单
+            get_document_notebooks();
             data.confirmLoading = false; // 停止转圈圈
             data.loading = false;
         })
         .catch((err) => {
-            console.log(err);
+            NotificationUtil.error('文件夹创建失败' + err);
         });
 };
 // 显示添加笔记对话框
@@ -600,6 +598,7 @@ const data = reactive({
     notEditedMdtext: '', // 未编辑的文章内容
     showMdEditor: false, // 是否显示编辑器
     newFolderName: '', // 新建笔记本的名称
+    newFolderParent: '', //新建文件夹的父文件夹
     addNotebookModalFormVisible: false, // 是否显示添加笔记本表单
     addFolderModalFormVisible: false,
     confirmLoading: false, // 添加笔记表单等待状态（是否转圈圈）

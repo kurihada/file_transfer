@@ -16,7 +16,7 @@ use crate::config::config::init_config;
 
 use crate::router::file_utils::{exist_file, get_document_notebooks, set_data_dir};
 use crate::router::note_book::{
-    create_note_file, create_notebook, get_note_list, read_note_file, remove_note, remove_notebook,
+    create_folder, create_note_file, get_note_list, read_note_file, remove_note, remove_notebook,
     save_note,
 };
 #[tauri::command]
@@ -34,7 +34,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             create_note_file,
-            create_notebook,
+            create_folder,
             get_note_list,
             read_note_file,
             remove_note,
@@ -83,7 +83,6 @@ pub fn run() {
             {
                 use cocoa::appkit::{NSColor, NSWindow};
                 use cocoa::base::{id, nil};
-                use tauri::TitleBarStyle;
 
                 let ns_window = _window.ns_window().unwrap() as id;
                 unsafe {

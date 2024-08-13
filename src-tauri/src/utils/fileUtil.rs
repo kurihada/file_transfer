@@ -42,7 +42,7 @@ pub fn get_dir_and_file(parent_info: &mut DirAndFileInfo) -> TauriResult<()> {
     let path = &parent_info.path;
     println!("get_dir_and_file {}", &path);
     if !metadata(&path)?.is_dir() {
-        return Err(TauriError::default_file_not_exist());
+        return Err(TauriError::default_file_not_exist(None));
     }
     for child_dir in read_dir(&path)? {
         let child_path = child_dir?.path();

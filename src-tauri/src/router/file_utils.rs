@@ -27,7 +27,7 @@ pub async fn get_document_notebooks<'a>(
             }
             return get_document_notebooks_data(&dir);
         }
-        None => Err(TauriError::default_not_found()),
+        None => Err(TauriError::default_not_found(None)),
     }
 }
 

@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -5,6 +6,8 @@ use tauri::{Manager, State};
 
 use crate::config::config::Config;
 use crate::response::resp_data::{ResData, ResDataNoData};
+use crate::response::response::Response;
+use crate::response::tauri_result::{TauriError, TauriResult};
 
 // 获取本地笔记列表
 #[tauri::command]
@@ -94,43 +97,31 @@ pub async fn read_note_file(cur_path: String) -> Result<ResData<String>, String>
 
 // 创建本地 笔记本/文件夹
 #[tauri::command]
-pub async fn create_notebook(
-    app_handle: tauri::AppHandle,
-    notebook_name: String,
-) -> Result<ResDataNoData, String> {
-    let app_dir = app_handle.path().document_dir();
-    if let Ok(dir) = app_dir {
-        // 本地文件目录
-        let local_data_dir = dir.as_path().join("notebooks");
-        // 文件夹是否存在
-        if local_data_dir.exists() {
-            let dir = local_data_dir.join(notebook_name);
-            // 创建文件夹
-            let res = std::fs::create_dir_all(dir);
-            match res {
-                Ok(_) => {
-                    return Ok(ResDataNoData {
-                        code: 200,
-                        msg: "创建成功".to_string(),
-                    })
-                }
-                Err(err) => {
-                    return Ok(ResDataNoData {
-                        code: 500,
-                        msg: format!("创建失败：{0}", err.to_string()),
-                    })
-                }
+pub async fn create_folder<'a>(
+    config: State<'a, Config>,
+    folder_path: String,
+) -> TauriResult<Response<String>> {
+    let document_dir_lock = Arc::clone(&config.document_dir);
+    let document_dir_opt = document_dir_lock.lock()?;
+    match *document_dir_opt {
+        Some(ref dir) => {
+            if !folder_path.starts_with(dir) {
+                return Err(TauriError::param_error(Some(format!(
+                    "文件夹({})必须在当前文档目录下({})",
+                    folder_path, dir
+                ))));
             }
+            let folder_path = Path::new(&folder_path);
+            if folder_path.exists() {
+                return Err(TauriError::param_error(Some("文件夹已存在".to_string())));
+            }
+            if let Err(_) = fs::create_dir_all(folder_path) {
+                return Err(TauriError::common_error(Some("创建文件夹失败".to_string())));
+            }
+            Ok(Response::success("创建成功".to_string()))
         }
-        return Ok(ResDataNoData {
-            code: 500,
-            msg: "文件夹不存在".to_string(),
-        });
+        None => Err(TauriError::default_not_found(None)),
     }
-    Ok(ResDataNoData {
-        code: 500,
-        msg: "文件夹不存在".to_string(),
-    })
 }
 
 /**

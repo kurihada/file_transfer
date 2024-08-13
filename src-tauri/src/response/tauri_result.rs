@@ -1,16 +1,15 @@
+use serde::Serialize;
 use std::{
     fmt::{self},
     result,
 };
 
-use serde::Serialize;
-
 pub type TauriResult<T> = result::Result<T, TauriError>;
 
 #[derive(Debug, Default, Serialize)]
 pub struct ErrorInfo {
-    code: String,
-    message: String,
+    pub code: String,
+    pub message: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -21,17 +20,31 @@ pub enum TauriError {
 }
 
 impl TauriError {
-    pub fn default_not_found() -> Self {
-        TauriError::NotFound(ErrorInfo {
-            code: "A0001".to_string(),
-            message: "Not found".to_string(),
+    pub fn common_error(message: Option<String>) -> Self {
+        TauriError::Base(ErrorInfo {
+            code: "A0000".to_string(),
+            message: message.unwrap_or("Unknown error".to_string()),
         })
     }
 
-    pub fn default_file_not_exist() -> Self {
-        TauriError::FileNotExist(ErrorInfo {
+    pub fn param_error(message: Option<String>) -> Self {
+        TauriError::Base(ErrorInfo {
+            code: "A0001".to_string(),
+            message: message.unwrap_or("Param error".to_string()),
+        })
+    }
+
+    pub fn default_not_found(message: Option<String>) -> Self {
+        TauriError::NotFound(ErrorInfo {
             code: "A0002".to_string(),
-            message: "File not exist".to_string(),
+            message: message.unwrap_or("Not found".to_string()),
+        })
+    }
+
+    pub fn default_file_not_exist(message: Option<String>) -> Self {
+        TauriError::FileNotExist(ErrorInfo {
+            code: "A0003".to_string(),
+            message: message.unwrap_or("File not exist".to_string()),
         })
     }
 }
