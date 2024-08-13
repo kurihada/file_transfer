@@ -28,7 +28,6 @@ pub fn get_document_notebooks_data(
         root_path.parent().unwrap().to_str().unwrap().to_string(),
     );
     get_dir_and_file(&mut root_node)?;
-    // let result = serde_json::to_string(&root_node)?;
     println!("get_document_notebooks_data {}", &root_node);
     Ok(Response::success(root_node))
 }
@@ -46,13 +45,17 @@ pub fn get_dir_and_file(parent_info: &mut DirAndFileInfo) -> TauriResult<()> {
     }
     for child_dir in read_dir(&path)? {
         let child_path = child_dir?.path();
+        let file_name = child_path
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+        if file_name.starts_with(".") {
+            continue;
+        }
         let mut child_info = DirAndFileInfo::create(
-            child_path
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string(),
+            file_name,
             child_path.to_str().unwrap().to_string(),
             child_path.is_file(),
             child_path.is_dir(),
@@ -63,5 +66,7 @@ pub fn get_dir_and_file(parent_info: &mut DirAndFileInfo) -> TauriResult<()> {
         }
         parent_info.children.push(child_info);
     }
+    // 对parent_inf.children进行排序
+    parent_info.children.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(())
 }

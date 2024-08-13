@@ -1,12 +1,15 @@
 <template>
-    <el-row style="height: 100%; width: 100%; overflow: auto; background-color: #d9d9d9">
+    <el-row
+        style="height: 100%; width: 100%; overflow: auto; background-color: #d9d9d9"
+        :gutter="20">
         <el-col
+            class="left-tree"
             :span="5"
             style="height: 100%; padding: 5px"
             @contextmenu.prevent="handleRightClick">
             <el-tree
-                v-if="data.show_notebooks_data.length > 0"
-                :data="data.show_notebooks_data"
+                v-if="notebooks_data.length > 0"
+                :data="notebooks_data"
                 draggable
                 node-key="id"
                 highlight-current="true"
@@ -14,7 +17,29 @@
                 @node-expand="handleExpand"
                 @node-collapse="handleCollapse"
                 @node-contextmenu="handleContextmenu"
-                style="font-size: medium" />
+                style="font-size: medium">
+                <template #default="{ data }">
+                    <el-icon
+                        v-if="data.is_dir"
+                        style="display: flex; justify-content: center; align-items: center"
+                        ><Folder
+                    /></el-icon>
+                    <el-icon
+                        v-else
+                        style="display: flex; justify-content: center; align-items: center"
+                        ><Document
+                    /></el-icon>
+                    <div
+                        style="
+                            margin-left: 5px;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                        ">
+                        {{ data.name }}
+                    </div>
+                </template>
+            </el-tree>
             <div
                 v-else-if="dataDir != null"
                 style="
@@ -63,17 +88,8 @@
         </el-col>
 
         <!-- 编辑器栏 -->
-        <el-col :span="19" style="background-color: #ffffff">
+        <el-col class="right-content" :span="19" style="background-color: #ffffff">
             <div v-if="data.showMdEditor">
-                <el-form layout="inline">
-                    <el-form-item style="width: 99.5%; margin: 0 auto; padding: 1px 0">
-                        <el-input
-                            class="mdtitle-input"
-                            :border="false"
-                            v-model="data.mdTitle"
-                            placeholder="文章标题"></el-input>
-                    </el-form-item>
-                </el-form>
                 <mavon-editor v-model="data.mdText" height="94vh" @save="saveMdText" />
             </div>
         </el-col>
@@ -312,7 +328,7 @@ const optionsComponent = {
 
 let notes: any[] = [];
 
-let notebooks_data = ref<FileInfo[] | undefined>([]);
+let notebooks_data = ref<FileInfo[]>([]);
 /**
  *  获取笔记本数据
  */
@@ -320,12 +336,11 @@ const get_document_notebooks = () => {
     MarkdownFile.getNotebooks()
         .then((fileInfo: FileInfo) => {
             console.log(fileInfo);
-            if (fileInfo !== undefined) {
+            if (fileInfo !== undefined && fileInfo.children !== undefined) {
                 notebooks_data.value = fileInfo.children;
                 dataDir.value = fileInfo.path;
                 curDir.value = fileInfo.path;
                 data.newFolderParent = fileInfo.path;
-                console.log('newFolderParent' + data.newFolderParent);
             }
         })
         .catch((error) => {
