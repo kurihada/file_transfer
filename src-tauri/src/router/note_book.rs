@@ -126,23 +126,33 @@ pub async fn create_folder<'a>(
 
 /**
  * 在指定的目录中创建一个markdown文件。
- *
- * @param cur_dir 指定的目录路径。
- * @param file_name 要创建的文件名。
- * @return 如果文件成功创建，返回Ok(true)；如果目录不存在，返回Err带有错误信息；如果创建文件失败，返回Err带有错误信息。
  */
 #[tauri::command]
-pub async fn create_note_file(cur_dir: String, file_name: String) -> Result<bool, String> {
-    let cur_path = Path::new(&cur_dir);
-
-    if !cur_path.exists() {
-        return Err(format!("文件夹不存在:{}", &cur_dir));
-    }
-
-    let res = std::fs::File::create(cur_path.join(file_name + ".md"));
-    match res {
-        Ok(_) => return Ok(true),
-        Err(err) => return Err(format!("创建失败：{}", err.to_string())),
+pub async fn create_note_file<'a>(
+    config: State<'a, Config>,
+    folder_path: String,
+    file_name: String,
+) -> TauriResult<Response<String>> {
+    let document_dir_lock = Arc::clone(&config.document_dir);
+    let document_dir_opt = document_dir_lock.lock()?;
+    match *document_dir_opt {
+        Some(ref dir) => {
+            if !folder_path.starts_with(dir) {
+                return Err(TauriError::param_error(Some(format!(
+                    "文件夹({})必须在当前文档目录下({})",
+                    folder_path, dir
+                ))));
+            }
+            let folder_path = Path::new(&folder_path);
+            if !folder_path.exists() {
+                return Err(TauriError::param_error(Some("文件夹不存在".to_string())));
+            }
+            if let Err(_) = fs::File::create(folder_path.join(file_name + ".md")) {
+                return Err(TauriError::common_error(Some("创建文件失败".to_string())));
+            }
+            Ok(Response::success("创建成功".to_string()))
+        }
+        None => Err(TauriError::default_not_found(None)),
     }
 }
 

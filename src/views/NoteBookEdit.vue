@@ -10,9 +10,8 @@
             <el-tree
                 v-if="notebooks_data.length > 0"
                 :data="notebooks_data"
-                draggable
                 node-key="id"
-                highlight-current="true"
+                :highlight-current="true"
                 @node-click="handleNodeClick"
                 @node-expand="handleExpand"
                 @node-collapse="handleCollapse"
@@ -41,7 +40,7 @@
                 </template>
             </el-tree>
             <div
-                v-else-if="dataDir != null"
+                v-else-if="data.rootFolderPath != null"
                 style="
                     height: 100%;
                     width: 100%;
@@ -69,7 +68,7 @@
                 <el-text size="large">选择文件夹</el-text>
             </div>
             <context-menu v-model:show="context_menu_show" :options="optionsComponent">
-                <context-menu-item label="刷新" @click="reFresh" />
+                <context-menu-item label="刷新" @click="get_document_notebooks()" />
                 <context-menu-group label="笔记">
                     <context-menu-item label="添加笔记" @click="showAddNotebookModalForm" />
                     <context-menu-item label="删除笔记" @click="showAddNotebookModalForm" />
@@ -105,7 +104,7 @@
             <el-button
                 type="primary"
                 :loading="data.loading"
-                @click="addNodeFolder(data.newFolderParent, data.newFolderName)"
+                @click="addNodeFolder(data.currentFolder, data.newFolderName)"
                 >确认</el-button
             >
         </template>
@@ -128,7 +127,7 @@
             <el-button
                 type="primary"
                 :loading="data.loading"
-                @click="addNotebook(data.newNoteMdFileName)"
+                @click="createNoteFile(data.currentFolder, data.newNoteMdFileName)"
                 >确认</el-button
             >
         </template>
@@ -152,6 +151,7 @@ import { FileInfo } from '../entity/FileInfo.ts';
 import { open } from '@tauri-apps/plugin-dialog';
 import MarkdownFile from '../utils/MarkdownFile.ts';
 import { NOT_FOUND_CODE } from '../entity/Response.ts';
+import { tr } from 'element-plus/es/locale/index';
 
 const handleRightClick = (event: MouseEvent) => {
     event.preventDefault();
@@ -159,9 +159,6 @@ const handleRightClick = (event: MouseEvent) => {
     optionsComponent.x = event.x;
     optionsComponent.y = event.y;
 };
-
-const dataDir = ref('');
-const curDir = ref('');
 
 const selectFolder = async () => {
     try {
@@ -171,20 +168,10 @@ const selectFolder = async () => {
         });
 
         if (selected && typeof selected === 'string') {
-            dataDir.value = selected;
-            curDir.value = selected;
-            invoke('set_data_dir', { dataDir: dataDir.value })
+            invoke('set_data_dir', { dataDir: selected })
                 .then((_: any) => {
-                    invoke('get_document_notebooks')
-                        .then((res: any) => {
-                            if (res && res.code == 200) {
-                                notebooks_data.value = JSON.parse(res.data).children;
-                                NotificationUtil.success('选择完成');
-                            }
-                        })
-                        .catch((err) => {
-                            NotificationUtil.error('获取文件夹下内容失败:' + err);
-                        });
+                    NotificationUtil.success('选择完成');
+                    get_document_notebooks();
                 })
                 .catch((err) => {
                     NotificationUtil.error('文件夹选择失败:' + err);
@@ -261,7 +248,7 @@ const handleNodeClick = (tree: FileInfo) => {
                                                     data.notEditedMdtext = tem; // 原始笔记内容
                                                     data.mdTitle = key;
                                                     data.mdOldTitle = key;
-                                                    data.currentOldNotebook = data.currentNotebook;
+                                                    data.currentOldNotebook = data.currentFolder;
                                                     data.showMdEditor = true;
                                                 } else {
                                                     NotificationUtil.error('读取失败：' + res.msg);
@@ -315,7 +302,12 @@ const handleExpand = (tree: FileInfo) => {};
 
 const handleCollapse = (tree: FileInfo) => {};
 
-const handleContextmenu = (tree: FileInfo) => {};
+const handleContextmenu = (event: MouseEvent, tree: FileInfo) => {
+    context_menu_show.value = true;
+    optionsComponent.x = event.x;
+    optionsComponent.y = event.y;
+    data.currentFolder = tree.path;
+};
 
 let context_menu_show = ref(false);
 const optionsComponent = {
@@ -325,8 +317,6 @@ const optionsComponent = {
     x: 500,
     y: 200,
 };
-
-let notes: any[] = [];
 
 let notebooks_data = ref<FileInfo[]>([]);
 /**
@@ -338,9 +328,8 @@ const get_document_notebooks = () => {
             console.log(fileInfo);
             if (fileInfo !== undefined && fileInfo.children !== undefined) {
                 notebooks_data.value = fileInfo.children;
-                dataDir.value = fileInfo.path;
-                curDir.value = fileInfo.path;
-                data.newFolderParent = fileInfo.path;
+                data.rootFolderPath = fileInfo.path;
+                data.currentFolder = fileInfo.path;
             }
         })
         .catch((error) => {
@@ -358,8 +347,6 @@ const get_document_notebooks = () => {
 const show_notebooks_data = computed(() => {
     return DirFileMenu.dir_file(notebooks_data.value);
 });
-
-let openKeys: string[] = [];
 
 /**
  * 保存笔记 切换笔记但未保存时调用
@@ -535,10 +522,11 @@ const addNodeFolder = (parentFolderName: string, folderName: string) => {
         .catch((err) => {
             NotificationUtil.error('文件夹创建失败' + err);
         });
+    data.currentFolder = data.rootFolderPath;
 };
 // 显示添加笔记对话框
 const showAddNotebookModalForm = () => {
-    if (StringUtil.isNullAndEmpty(curDir)) {
+    if (StringUtil.isNullAndEmpty(data.currentFolder)) {
         NotificationUtil.error(`请选择文件所在的文件夹`);
         return;
     }
@@ -547,21 +535,13 @@ const showAddNotebookModalForm = () => {
 /**
  * 添加笔记
  */
-const addNotebook = async (fileName: string) => {
-    const isSuccess = await MarkdownFile.addNotebook(curDir.value, fileName);
-    if (isSuccess) {
-        data.newNoteMdFileName = fileName;
-        notes.push({ title: String(fileName) });
-        data.currentNote = fileName; // 置当前笔记为新建的临时笔记
-        // 打开该临时笔记
-        data.mdTitle = fileName;
-        data.mdText = '';
-        data.showMdEditor = true;
-        data.mdOldTitle = fileName;
-        data.notEditedMdtext = '';
+const createNoteFile = async (folderPath: string, fileName: string) => {
+    MarkdownFile.createNoteFile(folderPath, fileName).then((_: void) => {
+        NotificationUtil.success('文件创建成功');
         data.addNotebookModalFormVisible = false; // 隐藏模态表单
+        data.currentFolder = data.rootFolderPath;
         get_document_notebooks();
-    }
+    });
 };
 
 /**
@@ -570,6 +550,7 @@ const addNotebook = async (fileName: string) => {
 const handleCancelByAddFolderModal = () => {
     data.addFolderModalFormVisible = false;
     data.newFolderName = '';
+    data.currentFolder = data.rootFolderPath;
 };
 /**
  * 关闭添加笔记模态框
@@ -577,43 +558,17 @@ const handleCancelByAddFolderModal = () => {
 const handleCancelByAddNotebookModal = () => {
     data.addNotebookModalFormVisible = false;
     data.newNoteMdFileName = '';
-};
-/**
- * 刷新笔记信息
- */
-const reFresh = () => {
-    get_document_notebooks();
-};
-
-/**
- * 获取文件夹下笔记列表
- */
-const get_note_list = () => {
-    invoke('get_note_list', { notebook: data.currentNotebook })
-        .then((res: any) => {
-            if (res && res.code == 200) {
-                var tem = res.data;
-                data.notes = tem.map((n: any) => {
-                    return { title: n };
-                });
-            } else {
-                NotificationUtil.error('获取笔记列表数据失败：' + res.msg);
-            }
-        })
-        .catch((err) => {
-            console.log(err);
-        });
+    data.currentFolder = data.rootFolderPath;
 };
 
 const data = reactive({
-    notes, // 笔记列表
-    currentNotebook: '', // 当前选中的文件夹
+    rootFolderPath: '',
+    currentFolder: '', // 当前选中的文件夹
     currentOldNotebook: '', //上次选中的文件夹
     currentNote: '', // 当前选中笔记
     notEditedMdtext: '', // 未编辑的文章内容
     showMdEditor: false, // 是否显示编辑器
     newFolderName: '', // 新建笔记本的名称
-    newFolderParent: '', //新建文件夹的父文件夹
     addNotebookModalFormVisible: false, // 是否显示添加笔记本表单
     addFolderModalFormVisible: false,
     confirmLoading: false, // 添加笔记表单等待状态（是否转圈圈）

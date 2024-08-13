@@ -26,6 +26,17 @@ let _ = {
             throw error;
         }
     },
+
+    async createNoteFile(folderPath: string, fileName: string) {
+        try {
+            await invoke<Response<String>>('create_note_file', {
+                folderPath: folderPath,
+                fileName: fileName,
+            });
+        } catch (error) {
+            throw error;
+        }
+    },
 };
 
 export default _;
