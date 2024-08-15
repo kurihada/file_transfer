@@ -24,30 +24,32 @@
                 @node-expand="handleExpand"
                 @node-collapse="handleCollapse"
                 @node-contextmenu="handleContextmenu"
-                style="font-size: medium; width: 100%; height: 100%">
+                style="width: 90%; height: 100%; margin: 0px !important">
                 <template #default="{ data }">
-                    <div style="display: flex; justify-content: space-between">
-                        <div style="display: flex; justify-content: left">
-                            <el-icon
-                                v-if="data.is_dir"
-                                style="display: flex; justify-content: center; align-items: center"
-                                ><Folder
-                            /></el-icon>
-                            <el-icon
-                                v-else
-                                style="display: flex; justify-content: center; align-items: center"
-                                ><Document
-                            /></el-icon>
-                            <div>
-                                {{ data.name }}
-                            </div>
-                        </div>
-                        <div style="margin-right: 20px">
-                            <div placement="right" trigger="hover">
-                                <span
-                                    v-if="globalData.notSaveNotes.has(data.path)"
-                                    class="orange-dot"></span>
-                            </div>
+                    <el-icon
+                        v-if="data.is_dir"
+                        style="display: flex; justify-content: center; align-items: center"
+                        ><Folder
+                    /></el-icon>
+                    <el-icon
+                        v-else
+                        style="display: flex; justify-content: center; align-items: center"
+                        ><Document
+                    /></el-icon>
+                    <div
+                        style="
+                            margin-left: 5px;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                        ">
+                        {{ data.name }}
+                    </div>
+                    <div style="margin-right: 20px">
+                        <div placement="right" trigger="hover">
+                            <span
+                                v-if="globalData.notSaveNotes.has(data.path)"
+                                class="orange-dot"></span>
                         </div>
                     </div>
                 </template>
@@ -100,7 +102,7 @@
         </el-aside>
         <div
             style="
-                width: 1px;
+                width: 2px;
                 background-color: #fbf6f6;
                 display: flex;
                 justify-content: center;
