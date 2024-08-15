@@ -67,7 +67,7 @@ pub fn run() {
                 )?],
             )?;
             let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-                .title("File Transfer")
+                .title("Markdown Editor")
                 .inner_size(800.0, 600.0)
                 .menu(menu)
                 .on_menu_event(move |_, event| {

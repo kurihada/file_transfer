@@ -157,63 +157,40 @@ pub async fn create_note_file<'a>(
 }
 
 /**
- * @param current_notebook 文件夹
- * @param current_note
- * @param md_title 标题/文件名
- * @param md_text 内容
+ * 保存笔记文件
+ * @param folder_path 文件夹路径
+ * @param file_name 文件名称
+ * @param file_content 文件内容
  */
 #[tauri::command]
-pub async fn save_note(
-    app_handle: tauri::AppHandle,
-    current_notebook: String,
-    current_note: String,
-    md_title: String,
-    md_text: String,
-) -> Result<ResDataNoData, String> {
-    let app_dir = app_handle.path().document_dir();
-    if let Ok(dir) = app_dir {
-        // 本地文件目录
-        let local_data_dir = dir.as_path().join("notebooks");
-        // 文件夹是否存在
-        if local_data_dir.exists() {
-            let path = local_data_dir
-                .join(current_notebook.clone())
-                .join(current_note + ".md");
-            let new_path = local_data_dir.join(current_notebook).join(md_title + ".md");
-            let wres = std::fs::write(path.clone(), md_text);
-            match wres {
-                Ok(_) => {
-                    //将文件或目录重命名为新名称，如果 to 已存在，则替换原始文件。如果新名称位于不同的挂载点，这将不起作用。
-                    let new_name_res = std::fs::rename(path, new_path);
-                    match new_name_res {
-                        Ok(_) => {
-                            return Ok(ResDataNoData {
-                                code: 200,
-                                msg: "操作成功".to_string(),
-                            });
-                        }
-                        Err(e) => {
-                            return Ok(ResDataNoData {
-                                code: 500,
-                                msg: e.to_string(),
-                            });
-                        }
-                    }
-                }
-                Err(e) => {
-                    return Ok(ResDataNoData {
-                        code: 500,
-                        msg: e.to_string(),
-                    });
-                }
+pub async fn save_note<'a>(
+    config: State<'a, Config>,
+    folder_path: String,
+    file_name: String,
+    file_content: String,
+) -> TauriResult<Response<String>> {
+    let document_dir_lock = Arc::clone(&config.document_dir);
+    let document_dir_opt = document_dir_lock.lock()?;
+    match *document_dir_opt {
+        Some(ref dir) => {
+            if !folder_path.starts_with(dir) {
+                return Err(TauriError::param_error(Some(format!(
+                    "文件夹({})必须在当前文档目录下({})",
+                    folder_path, dir
+                ))));
             }
-        }
-    }
+            let file_path = Path::new(&folder_path).join(file_name);
+            if !file_path.exists() {
+                return Err(TauriError::param_error(Some("文件不存在".to_string())));
+            }
 
-    Ok(ResDataNoData {
-        code: 500,
-        msg: "文件夹不存在".to_string(),
-    })
+            if let Err(_) = fs::write(file_path, file_content) {
+                return Err(TauriError::common_error(Some("保存文件失败".to_string())));
+            }
+            Ok(Response::success("保存文件成功".to_string()))
+        }
+        None => Err(TauriError::default_not_found(None)),
+    }
 }
 
 /**
