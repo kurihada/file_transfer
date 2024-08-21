@@ -1,13 +1,7 @@
 <template>
     <el-container
         id="app-container"
-        style="
-            height: 100%;
-            width: 100%;
-            overflow: auto;
-            background-color: #d9d9d9;
-            border-radius: 8px;
-        ">
+        style="height: 100%; width: 100%; overflow: auto; border-radius: 8px">
         <el-aside
             style="height: 100%; background-color: #ffffff"
             :style="{
@@ -26,31 +20,72 @@
                 @node-contextmenu="handleContextmenu"
                 style="width: 90%; height: 100%; margin: 0px !important">
                 <template #default="{ data }">
-                    <el-icon
-                        v-if="data.is_dir"
-                        style="display: flex; justify-content: center; align-items: center"
-                        ><Folder
-                    /></el-icon>
-                    <el-icon
-                        v-else
-                        style="display: flex; justify-content: center; align-items: center"
-                        ><Document
-                    /></el-icon>
                     <div
                         style="
-                            margin-left: 5px;
-                            white-space: nowrap;
+                            display: flex;
+                            flex-direction: column;
+                            width: 100%;
                             overflow: hidden;
-                            text-overflow: ellipsis;
                         ">
-                        {{ data.name }}
-                    </div>
-                    <div style="margin-right: 20px">
-                        <div placement="right" trigger="hover">
-                            <span
-                                v-if="globalData.notSaveNotes.has(data.path)"
-                                class="orange-dot"></span>
+                        <div
+                            style="
+                                display: flex;
+                                align-items: center;
+                                justify-content: space-between;
+                                overflow: hidden;
+                            ">
+                            <div
+                                style="
+                                    display: flex;
+                                    align-items: center;
+                                    flex-grow: 1;
+                                    min-width: 0;
+                                ">
+                                <el-icon
+                                    v-if="data.is_dir"
+                                    style="
+                                        display: flex;
+                                        justify-content: center;
+                                        align-items: center;
+                                    "
+                                    ><Folder
+                                /></el-icon>
+                                <el-icon
+                                    v-else
+                                    style="
+                                        display: flex;
+                                        justify-content: center;
+                                        align-items: center;
+                                    "
+                                    ><Document
+                                /></el-icon>
+                                <div
+                                    style="
+                                        margin-left: 5px;
+                                        white-space: nowrap;
+                                        overflow: hidden;
+                                        text-overflow: ellipsis;
+                                        flex-grow: 1;
+                                        min-width: 0;
+                                    ">
+                                    {{ data.name }}
+                                </div>
+                            </div>
+                            <div style="margin-right: 20px">
+                                <div placement="right" trigger="hover">
+                                    <span
+                                        v-if="globalData.notSaveNotes.has(data.path)"
+                                        class="orange-dot"></span>
+                                </div>
+                            </div>
                         </div>
+                        <div
+                            style="
+                                width: 100%;
+                                height: 1px;
+                                background-color: #dcdcdc;
+                                margin-top: 4px;
+                            "></div>
                     </div>
                 </template>
             </el-tree>
@@ -82,23 +117,6 @@
                 <el-icon size="large"><Plus /></el-icon>
                 <el-text size="large">选择文件夹</el-text>
             </div>
-            <context-menu v-model:show="context_menu_show" :options="optionsComponent">
-                <context-menu-item label="刷新" @click="get_document_notebooks()" />
-                <context-menu-group label="笔记">
-                    <context-menu-item label="添加笔记" @click="showAddNotebookModalForm" />
-                    <context-menu-item label="删除笔记" @click="showAddNotebookModalForm" />
-                </context-menu-group>
-                <context-menu-group label="文件夹">
-                    <context-menu-item
-                        label="添加文件夹"
-                        @click="
-                            () => {
-                                globalData.addFolderModalFormVisible = true;
-                            }
-                        " />
-                    <!-- <context-menu-item label="删除文件夹" @click="showAddFolderModalForm" /> -->
-                </context-menu-group>
-            </context-menu>
         </el-aside>
         <div
             style="
@@ -128,6 +146,23 @@
             </div>
         </el-main>
     </el-container>
+    <context-menu v-model:show="context_menu_show" :options="optionsComponent">
+        <context-menu-item label="刷新" @click="get_document_notebooks()" />
+        <context-menu-group label="笔记">
+            <context-menu-item label="添加笔记" @click="showAddNotebookModalForm" />
+            <context-menu-item label="删除笔记" @click="showAddNotebookModalForm" />
+        </context-menu-group>
+        <context-menu-group label="文件夹">
+            <context-menu-item
+                label="添加文件夹"
+                @click="
+                    () => {
+                        globalData.addFolderModalFormVisible = true;
+                    }
+                " />
+            <!-- <context-menu-item label="删除文件夹" @click="showAddFolderModalForm" /> -->
+        </context-menu-group>
+    </context-menu>
     <!-- 添加文件夹弹出表单 -->
     <el-dialog
         title="添加文件夹"
@@ -309,11 +344,11 @@ const handleContextmenu = (event: MouseEvent, tree: FileInfo) => {
 
 let context_menu_show = ref(false);
 const optionsComponent = {
-    theme: 'mac',
-    zIndex: 3,
-    minWidth: 150,
-    x: 500,
-    y: 200,
+    theme: 'default',
+    zIndex: 9999,
+    minWidth: 100,
+    x: 0,
+    y: 0,
 };
 
 let notebooks_data = ref<FileInfo[]>([]);
@@ -454,10 +489,10 @@ const globalData = reactive({
     margin-left: 10px; /* 可根据需要调整 */
 }
 /* 偶数行 */
-.el-tree-node:nth-child(even) {
+/* .el-tree-node:nth-child(even) {
     background-color: #f9f9f9;
     border-radius: 8px;
-}
+} */
 
 /* 修改选中节点的背景颜色 */
 .el-tree-node.is-current > .el-tree-node__content {
