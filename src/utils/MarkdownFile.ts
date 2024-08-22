@@ -40,7 +40,6 @@ let _ = {
 
     async saveNote(folderPath: string, fileName: string, fileContent: string) {
         try {
-            console.log(fileName);
             await invoke<Response<string>>('save_note', {
                 folderPath: folderPath,
                 fileName: fileName,
@@ -53,12 +52,21 @@ let _ = {
 
     async readNoteFile(filePath: string): Promise<string> {
         try {
-            console.log(filePath);
             let result = await invoke<Response<string>>('read_note_file', {
                 curPath: filePath,
             });
-            console.log(result);
             return result.data;
+        } catch (error) {
+            throw error;
+        }
+    },
+
+    async rename_path(oldPath: string, newPath: string) {
+        try {
+            await invoke<Response<string>>('rename_path', {
+                oldPath: oldPath,
+                newPath: newPath,
+            });
         } catch (error) {
             throw error;
         }

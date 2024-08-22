@@ -17,7 +17,7 @@ use crate::config::config::init_config;
 use crate::router::file_utils::{exist_file, get_document_notebooks, set_data_dir};
 use crate::router::note_book::{
     create_folder, create_note_file, get_note_list, read_note_file, remove_note, remove_notebook,
-    save_note,
+    rename_path, save_note,
 };
 #[tauri::command]
 async fn scan_devices() -> Vec<device::DeviceInfo> {
@@ -33,6 +33,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            rename_path,
             create_note_file,
             create_folder,
             get_note_list,

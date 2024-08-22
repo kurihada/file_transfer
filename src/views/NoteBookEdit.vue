@@ -147,21 +147,35 @@
         </el-main>
     </el-container>
     <context-menu v-model:show="context_menu_show" :options="optionsComponent">
-        <context-menu-item label="刷新" @click="get_document_notebooks()" />
-        <context-menu-group label="笔记">
-            <context-menu-item label="添加笔记" @click="showAddNotebookModalForm" />
-            <context-menu-item label="删除笔记" @click="showAddNotebookModalForm" />
-        </context-menu-group>
-        <context-menu-group label="文件夹">
-            <context-menu-item
-                label="添加文件夹"
-                @click="
-                    () => {
-                        globalData.addFolderModalFormVisible = true;
-                    }
-                " />
-            <!-- <context-menu-item label="删除文件夹" @click="showAddFolderModalForm" /> -->
-        </context-menu-group>
+        <context-menu-item label="刷新" @click="get_document_notebooks()">
+            <template #icon>
+                <el-icon><Refresh /></el-icon>
+            </template>
+        </context-menu-item>
+        <context-menu-item label="添加笔记" @click="showAddNotebookModalForm">
+            <template #icon>
+                <el-icon><Notebook /></el-icon>
+            </template>
+        </context-menu-item>
+        <context-menu-item
+            label="添加文件夹"
+            @click="
+                () => {
+                    globalData.addFolderModalFormVisible = true;
+                }
+            ">
+            <template #icon>
+                <el-icon><Folder /></el-icon>
+            </template>
+        </context-menu-item>
+    </context-menu>
+
+    <context-menu v-model:show="globalData.context_menu_file_show" :options="optionsComponent">
+        <context-menu-item label="重命名" @click="rename_document_notebooks_dialog()">
+            <template #icon>
+                <el-icon><EditPen /></el-icon>
+            </template>
+        </context-menu-item>
     </context-menu>
     <!-- 添加文件夹弹出表单 -->
     <el-dialog
@@ -197,14 +211,36 @@
             <el-button
                 type="primary"
                 :loading="globalData.loading"
-                @click="createNoteFile(globalData.currentFolder, globalData.newNoteMdFileName)"
+                @click="createNoteFile(globalData.currentFolder, globalData.tempName)"
                 >确认</el-button
             >
         </template>
         <div>
             <br />
             <br />
-            <el-input v-model="globalData.newNoteMdFileName" placeholder="笔记名称" clearable />
+            <el-input v-model="globalData.tempName" placeholder="笔记名称" clearable />
+            <br />
+            <br />
+        </div>
+    </el-dialog>
+    <el-dialog
+        title="重命名"
+        v-model="globalData.renameModalFormVisible"
+        @close="handleCancelByRenameModal"
+        center>
+        <template #footer>
+            <el-button @click="handleCancelByRenameModal">取消</el-button>
+            <el-button
+                type="primary"
+                :loading="globalData.loading"
+                @click="rename_document_notebooks(globalData.currentNotePath, globalData.tempName)"
+                >确认</el-button
+            >
+        </template>
+        <div>
+            <br />
+            <br />
+            <el-input v-model="globalData.tempName" placeholder="笔记名称" clearable />
             <br />
             <br />
         </div>
@@ -257,6 +293,40 @@ const handleRightClick = (event: MouseEvent) => {
     context_menu_show.value = true;
     optionsComponent.x = event.x;
     optionsComponent.y = event.y;
+};
+
+const rename_document_notebooks_dialog = () => {
+    if (StringUtil.isNullAndEmpty(globalData.currentNote)) {
+        NotificationUtil.warning('请选择一个笔记');
+        return;
+    }
+    globalData.renameModalFormVisible = true;
+};
+
+const rename_document_notebooks = (notebook_path: string, notebook_new_name: string) => {
+    MarkdownFile.rename_path(
+        notebook_path,
+        notebook_path.substring(0, notebook_path.lastIndexOf('/')) +
+            '/' +
+            notebook_new_name +
+            '.md',
+    )
+        .then((_: void) => {
+            NotificationUtil.success('重命名成功');
+            get_document_notebooks();
+            globalData.tempName = '';
+            globalData.renameModalFormVisible = false;
+        })
+        .catch((err: any) => {
+            NotificationUtil.error('重命名失败:' + err);
+        });
+};
+
+const handleCancelByRenameModal = () => {
+    if (globalData.renameModalFormVisible) {
+        globalData.renameModalFormVisible = false;
+    }
+    globalData.renameNoteName = '';
 };
 
 const selectFolder = async () => {
@@ -336,10 +406,16 @@ const handleExpand = (tree: FileInfo) => {};
 const handleCollapse = (tree: FileInfo) => {};
 
 const handleContextmenu = (event: MouseEvent, tree: FileInfo) => {
-    context_menu_show.value = true;
+    // context_menu_show.value = true;
     optionsComponent.x = event.x;
     optionsComponent.y = event.y;
-    globalData.currentFolder = tree.path;
+    if (tree.is_dir) {
+        globalData.currentFolder = tree.path;
+    } else if (tree.is_file) {
+        globalData.context_menu_file_show = true;
+        globalData.currentNotePath = tree.path;
+        globalData.currentNote = tree.name;
+    }
 };
 
 let context_menu_show = ref(false);
@@ -453,7 +529,7 @@ const handleCancelByAddFolderModal = () => {
  */
 const handleCancelByAddNotebookModal = () => {
     globalData.addNotebookModalFormVisible = false;
-    globalData.newNoteMdFileName = '';
+    globalData.tempName = '';
     globalData.currentFolder = globalData.rootFolderPath;
 };
 
@@ -468,8 +544,11 @@ const globalData = reactive({
     newFolderName: '', // 新建笔记本的名称
     addNotebookModalFormVisible: false, // 是否显示添加笔记本表单
     addFolderModalFormVisible: false,
+    context_menu_file_show: false,
+    renameModalFormVisible: false, // 重命名文件可见性
+    renameNoteName: '', // 重命名的新名称
     confirmLoading: false, // 添加笔记表单等待状态（是否转圈圈）
-    newNoteMdFileName: '', // 新建的笔记文件名
+    tempName: '', // 新建或更新等暂用名称
     noteContent: '', // 旧文章内容
     loading: false,
     notSaveNotes: new Map<string, string>(),
